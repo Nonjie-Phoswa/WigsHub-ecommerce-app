@@ -233,3 +233,262 @@ function showWishlist() {
         btn.onclick = () => removeFromWishlist(btn.getAttribute("data-id"));
     });
 }
+// ----- OPEN/CLOSE WINDOWS -----
+function openCart() { 
+    showCart(); 
+    cartBox.classList.remove("hidden"); 
+    wishlistBox.classList.add("hidden"); 
+    if (paymentPopup) paymentPopup.classList.add("hidden"); 
+}
+
+function openWishlist() { 
+    showWishlist(); 
+    wishlistBox.classList.remove("hidden"); 
+    cartBox.classList.add("hidden"); 
+    if (paymentPopup) paymentPopup.classList.add("hidden"); 
+}
+
+function closeAll() { 
+    cartBox.classList.add("hidden"); 
+    wishlistBox.classList.add("hidden"); 
+    if (paymentPopup) paymentPopup.classList.add("hidden"); 
+}
+
+// ----- PAYMENT VALIDATION -----
+function validatePayment() {
+    let isValid = true;
+    
+    // Get all fields
+    let name = document.getElementById("cardName");
+    let cardNumber = document.getElementById("cardNumber");
+    let expiry = document.getElementById("expiry");
+    let cvv = document.getElementById("cvv");
+    
+    // Get error message elements
+    let nameError = document.getElementById("nameError");
+    let cardError = document.getElementById("cardError");
+    let expiryError = document.getElementById("expiryError");
+    let cvvError = document.getElementById("cvvError");
+    
+    // Clear previous errors
+    nameError.innerHTML = "";
+    cardError.innerHTML = "";
+    expiryError.innerHTML = "";
+    cvvError.innerHTML = "";
+    
+    name.classList.remove("error", "success");
+    cardNumber.classList.remove("error", "success");
+    expiry.classList.remove("error", "success");
+    cvv.classList.remove("error", "success");
+    
+    // 1. Validate Cardholder Name
+    let nameValue = name.value.trim();
+    if (nameValue === "") {
+        nameError.innerHTML = "Cardholder name is required";
+        name.classList.add("error");
+        isValid = false;
+    } else if (!/^[A-Za-z\s]+$/.test(nameValue)) {
+        nameError.innerHTML = "Name must contain only letters and spaces";
+        name.classList.add("error");
+        isValid = false;
+    } else {
+        name.classList.add("success");
+    }
+    
+    // 2. Validate Card Number
+    let cardValue = cardNumber.value.trim();
+    if (cardValue === "") {
+        cardError.innerHTML = "Card number is required";
+        cardNumber.classList.add("error");
+        isValid = false;
+    } else if (!/^\d{13}$/.test(cardValue)) {
+        cardError.innerHTML = "Card number must be exactly 13 digits";
+        cardNumber.classList.add("error");
+        isValid = false;
+    } else {
+        cardNumber.classList.add("success");
+    }
+    
+    // 3. Validate Expiry Date
+    let expiryValue = expiry.value.trim();
+    if (expiryValue === "") {
+        expiryError.innerHTML = "Expiry date is required";
+        expiry.classList.add("error");
+        isValid = false;
+    } else if (!/^\d{2}\/\d{2}$/.test(expiryValue)) {
+        expiryError.innerHTML = "Expiry date must be in MM/YY format (example: 12/25)";
+        expiry.classList.add("error");
+        isValid = false;
+    } else {
+        let parts = expiryValue.split("/");
+        let expMonth = parseInt(parts[0], 10);
+        let expYear = parseInt(parts[1], 10);
+        let today = new Date();
+        let currentYear = today.getFullYear() % 100;
+        let currentMonth = today.getMonth() + 1;
+        
+        if (expMonth < 1 || expMonth > 12) {
+            expiryError.innerHTML = "Month must be between 01 and 12";
+            expiry.classList.add("error");
+            isValid = false;
+        } else if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+            expiryError.innerHTML = "Card has expired! Please use a valid date";
+            expiry.classList.add("error");
+            isValid = false;
+        } else {
+            expiry.classList.add("success");
+        }
+    }
+    
+    // 4. Validate CVV
+    let cvvValue = cvv.value.trim();
+    if (cvvValue === "") {
+        cvvError.innerHTML = "CVV is required";
+        cvv.classList.add("error");
+        isValid = false;
+    } else if (!/^\d{3}$/.test(cvvValue)) {
+        cvvError.innerHTML = "CVV must be exactly 3 numbers";
+        cvv.classList.add("error");
+        isValid = false;
+    } else {
+        cvv.classList.add("success");
+    }
+    
+    return isValid;
+}
+
+// ----- SETUP PAYMENT BUTTONS -----
+let checkoutBtn = document.querySelector(".checkout-btn");
+if (checkoutBtn) {
+    checkoutBtn.onclick = () => {
+        if (cart.length === 0) {
+            showToast("Your cart is empty! Add some items first.", "warning");
+            return;
+        }
+        let total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+        let popupTotal = document.getElementById("popupTotal");
+        if (popupTotal) popupTotal.innerHTML = "Total: R" + total.toFixed(2);
+        if (paymentPopup) paymentPopup.classList.remove("hidden");
+        cartBox.classList.add("hidden");
+        
+        // Clear form
+        let fields = ["cardName", "cardNumber", "expiry", "cvv"];
+        fields.forEach(id => {
+            let el = document.getElementById(id);
+            if (el) el.value = "";
+            let errorEl = document.getElementById(id + "Error");
+            if (errorEl) errorEl.innerHTML = "";
+            if (el) el.classList.remove("error", "success");
+        });
+    };
+}
+
+if (closePaymentBtn) {
+    closePaymentBtn.onclick = () => {
+        if (paymentPopup) paymentPopup.classList.add("hidden");
+    };
+}
+
+let payNowBtn = document.querySelector(".pay-now-btn");
+if (payNowBtn) {
+    payNowBtn.onclick = () => {
+        if (validatePayment()) {
+            showToast("Payment successful! Thank you for shopping at Wigs Hub!", "success");
+            cart = [];
+            updateNumbers();
+            showCart();
+            if (paymentPopup) paymentPopup.classList.add("hidden");
+            cartBox.classList.add("hidden");
+            
+            // Clear all fields
+            ["cardName", "cardNumber", "expiry", "cvv"].forEach(id => {
+                let el = document.getElementById(id);
+                if (el) el.value = "";
+            });
+        }
+    };
+}
+
+// ----- FORM INPUT RESTRICTIONS -----
+// Name - letters only
+let nameInput = document.getElementById("cardName");
+if (nameInput) {
+    nameInput.addEventListener("input", function() {
+        this.value = this.value.replace(/[^A-Za-z\s]/g, "");
+    });
+}
+
+// Card Number - digits only, max 13
+let cardInput = document.getElementById("cardNumber");
+if (cardInput) {
+    cardInput.addEventListener("input", function() {
+        this.value = this.value.replace(/\D/g, "").slice(0, 13);
+    });
+}
+
+// CVV - digits only, max 3
+let cvvInput = document.getElementById("cvv");
+if (cvvInput) {
+    cvvInput.addEventListener("input", function() {
+        this.value = this.value.replace(/\D/g, "").slice(0, 3);
+    });
+}
+
+// Expiry - auto format MM/YY
+let expiryInput = document.getElementById("expiry");
+if (expiryInput) {
+    expiryInput.addEventListener("input", function() {
+        let value = this.value.replace(/\D/g, "").slice(0, 4);
+        if (value.length >= 3) {
+            this.value = value.slice(0, 2) + "/" + value.slice(2);
+        } else {
+            this.value = value;
+        }
+    });
+}
+
+// ----- CONNECT BUTTONS -----
+document.querySelectorAll(".section button").forEach(btn => {
+    btn.onclick = (e) => {
+        e.stopPropagation();
+        let section = btn.closest(".section");
+        if (section) addToCart(section.getAttribute("data-id"));
+    };
+});
+
+document.querySelectorAll(".section .wishlist-icon").forEach(icon => {
+    icon.onclick = (e) => {
+        e.stopPropagation();
+        let section = icon.closest(".section");
+        if (section) addToWishlist(section.getAttribute("data-id"));
+    };
+});
+
+if (cartIcon) cartIcon.onclick = openCart;
+if (heartIcon) heartIcon.onclick = openWishlist;
+
+document.querySelectorAll(".close-window").forEach(btn => {
+    btn.onclick = closeAll;
+});
+
+
+// Back arrow from the payment form
+let backArrow = document.getElementById("back-arrow");
+if (backArrow) {
+    backArrow.onclick = () => {
+        if (paymentPopup) paymentPopup.classList.add("hidden");
+        cartBox.classList.remove("hidden");
+    };
+}
+
+// SEARCH FUNCTION
+let searchInput = document.getElementById("search-input");
+if (searchInput) {
+    searchInput.addEventListener("input", function() {
+        let value = searchInput.value.toLowerCase();
+        document.querySelectorAll(".section").forEach(card => {
+            let text = card.innerText.toLowerCase();
+            card.style.display = text.includes(value) ? "block" : "none";
+        });
+    });
+}
