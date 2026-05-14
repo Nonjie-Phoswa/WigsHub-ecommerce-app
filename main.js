@@ -107,3 +107,129 @@ document.querySelectorAll(".section").forEach((card, i) => {
     card.setAttribute("data-id", i);
     card.info = getInfo(card);
 });
+
+// ----- CART FUNCTIONS -----
+function addToCart(id) {
+    let card = document.querySelector(`.section[data-id="${id}"]`);
+    let existing = cart.find(item => item.productId == id);
+    
+    if (existing) {
+        existing.quantity++;
+        showToast(`${card.info.name} quantity updated!`, "success");
+    } else {
+        cart.push({
+            uniqueId: Date.now(),
+            productId: id,
+            ...card.info,
+            quantity: 1
+        });
+        showToast(`${card.info.name} added to cart!`, "success");
+    }
+    updateNumbers();
+    showCart();
+}
+
+function updateQuantity(uniqueId, change) {
+    let item = cart.find(i => i.uniqueId == uniqueId);
+    if (item) {
+        item.quantity += change;
+        if (item.quantity <= 0) cart = cart.filter(i => i.uniqueId != uniqueId);
+        updateNumbers();
+        showCart();
+        if (cart.length == 0) cartBox.classList.add("hidden");
+    }
+}
+
+function showCart() {
+    let list = document.querySelector(".cart-items-list");
+    let totalDiv = document.querySelector(".cart-total");
+    
+    if (cart.length == 0) {
+        list.innerHTML = "<p>Cart empty</p>";
+        totalDiv.innerHTML = "";
+        return;
+    }
+    
+    let total = 0;
+    list.innerHTML = cart.map(item => {
+        let itemTotal = item.price * item.quantity;
+        total += itemTotal;
+        return `
+            <div class="cart-item">
+                <div class="item-info">
+                    <img src="${item.img}" width="40">
+                    <div><div>${item.name}</div><div>R${item.price.toFixed(2)} each</div></div>
+                </div>
+                <div class="quantity-controls">
+                    <button class="qty-btn minus" data-id="${item.uniqueId}">-</button>
+                    <span class="qty-num">${item.quantity}</span>
+                    <button class="qty-btn plus" data-id="${item.uniqueId}">+</button>
+                    <button class="remove-btn" data-id="${item.uniqueId}">Remove</button>
+                </div>
+                <div class="item-total">R${itemTotal.toFixed(2)}</div>
+            </div>
+        `;
+    }).join("");
+    totalDiv.innerHTML = "<strong>Total: R" + total.toFixed(2) + "</strong>";
+    
+    // Attach events
+    document.querySelectorAll(".qty-btn.minus, .qty-btn.plus, .remove-btn").forEach(btn => {
+        btn.onclick = (e) => {
+            e.stopPropagation();
+            let id = btn.getAttribute("data-id");
+            if (btn.classList.contains("minus")) updateQuantity(id, -1);
+            else if (btn.classList.contains("plus")) updateQuantity(id, 1);
+            else updateQuantity(id, -999);
+        };
+    });
+}
+
+
+// ----- WISHLIST FUNCTIONS -----
+function addToWishlist(id) {
+    let card = document.querySelector(`.section[data-id="${id}"]`);
+    if (!wishlist.find(item => item.id == id)) {
+        wishlist.push({ id, ...card.info });
+        let heart = card.querySelector(".wishlist-icon i");
+        heart.classList.remove("bi-heart");
+        heart.classList.add("bi-heart-fill");
+        heart.style.color = "red";
+        updateNumbers();
+        showWishlist();
+        showToast(`${card.info.name} added to wishlist!`, "success");
+    }
+}
+
+function removeFromWishlist(id) {
+    wishlist = wishlist.filter(item => item.id != id);
+    let card = document.querySelector(`.section[data-id="${id}"]`);
+    if (card) {
+        let heart = card.querySelector(".wishlist-icon i");
+        heart.classList.remove("bi-heart-fill");
+        heart.classList.add("bi-heart");
+        heart.style.color = "black";
+    }
+    updateNumbers();
+    showWishlist();
+    if (wishlist.length == 0) wishlistBox.classList.add("hidden");
+}
+
+function showWishlist() {
+    let list = document.querySelector(".wishlist-items-list");
+    if (wishlist.length == 0) {
+        list.innerHTML = "<p>Wishlist empty</p>";
+        return;
+    }
+    list.innerHTML = wishlist.map(item => `
+        <div class="wishlist-item">
+            <div class="item-info">
+                <img src="${item.img}" width="40">
+                <span>${item.name} - R${item.price.toFixed(2)}</span>
+            </div>
+            <button class="remove-wishlist-btn" data-id="${item.id}">Remove</button>
+        </div>
+    `).join("");
+    document.querySelectorAll(".remove-wishlist-btn").forEach(btn => {
+        btn.onclick = () => removeFromWishlist(btn.getAttribute("data-id"));
+    });
+}
